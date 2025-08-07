@@ -23,6 +23,10 @@ This repository contains the official implementation of the paper "Moment Bounds
 
 **Coming soon**
 
+## License and Copyright
+
+The code in this repository is provided under a 3-clause BSD license. 
+
 ## Citation
 
 If you find this code or our method useful for your research, please cite our paper
