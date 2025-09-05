@@ -5,7 +5,7 @@ build-backend = "scikit_build_core.build"
 [project]
 name = "diffmoments"
 requires-python = ">=3.8"
-version = "0.0.0"
+version = "0.1.0"
 authors = [{name = "Markus Worchel", email = "m.worchel@tu-berlin.de"}]
 license = {file = "LICENSE"}
 description = "Differentiable moment bounds."
