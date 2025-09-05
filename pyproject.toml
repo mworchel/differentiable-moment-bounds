@@ -27,7 +27,7 @@ minimum-version = "build-system.requires"
 build-dir = "build/{wheel_tag}"
 # Exclude files from sdist
 sdist.exclude = [".gitignore", ".gitmodules", 
-                 "ext/nanobind/.github/*", "ext/nanobind/cmake/*", "ext/nanobind/docs/*", "ext/nanobind/tests/*"]
+                 "ext/nanobind/.github/*", "ext/nanobind/docs/*", "ext/nanobind/tests/*"]
 
 [tool.cibuildwheel]
 # Run the package tests on every wheel using `pytest`
