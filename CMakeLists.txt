@@ -1,4 +1,5 @@
-cmake_minimum_required(VERSION 3.18)
+# CMake 3.25.2 is required for NVCC 12 + CUDA20 support
+cmake_minimum_required(VERSION 3.25.2)
 
 project(diffmoments LANGUAGES CXX)
 
