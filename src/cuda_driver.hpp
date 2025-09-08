@@ -1,4 +1,4 @@
-// Derived from https://github.com/rgl-epfl/cholespy/blob/main/src/cuda_driver.h
+// Derived from https://github.com/rgl-epfl/cholespy/blob/main/src/cuda_driver.h (3-clause BSD License)
 
 #pragma once
 

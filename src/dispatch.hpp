@@ -120,6 +120,9 @@ void compute_moment_bounds_cpu(unsigned int size, Float const* moments, Float co
 template<unsigned int N, typename Float, uint32_t Flags>
 void compute_moment_bounds_gpu(int device_id, unsigned int size, Float const* moments, Float const* etas, Float* bounds, Float* roots, Float* weights, dm::MomentBoundParams<Float> const& params)
 {
+    if (!cu_context)
+        throw std::runtime_error("CUDA context is not initialized.");
+
     // TODO: Handle non-default device (also affects the kernel cache)
     if (device_id != 0)
         throw std::invalid_argument(format_message("Currently only CUDA device 0 is supported, but received arrays on CUDA device %d", device_id));
@@ -235,6 +238,9 @@ void compute_moment_bounds_backward_cpu(unsigned int size, Float const* moments,
 template<unsigned int N, typename Float, uint32_t Flags>
 void compute_moment_bounds_backward_gpu(int device_id, unsigned int size, Float const* moments, Float const* etas, Float const* bounds, Float const* roots, dm::MomentBoundParams<Float> const& params, Float* dmoments, Float* detas, Float const* dbounds)
 {
+    if (!cu_context)
+        throw std::runtime_error("CUDA context is not initialized.");
+
     // TODO: Handle non-default device (also affects the kernel cache)
     if (device_id != 0)
         throw std::invalid_argument(format_message("Currently only CUDA device 0 is supported, but received arrays on CUDA device %d", device_id));
@@ -305,6 +311,9 @@ void detect_bound_errors_cpu(unsigned int size, Float const* bounds)
 template<typename Float>
 void detect_bound_errors_gpu(int device_id, unsigned int size, Float* bounds)
 {
+    if (!cu_context)
+        throw std::runtime_error("CUDA context is not initialized.");
+
     // TODO: Handle non-default device (also affects the kernel cache)
     if (device_id != 0)
         throw std::invalid_argument(format_message("Currently only CUDA device 0 is supported, but received arrays on CUDA device %d", device_id));
@@ -404,6 +413,9 @@ void compute_singularities_cpu(unsigned int size, dm::MomentBoundParams<Float> c
 template<unsigned int N, typename Float>
 void compute_singularities_gpu(int device_id, unsigned int size, dm::MomentBoundParams<Float> const& params, Float const* moments, Float* singularities)
 {
+    if (!cu_context)
+        throw std::runtime_error("CUDA context is not initialized.");
+
     // TODO: Handle non-default device (also affects the kernel cache)
     if (device_id != 0)
         throw std::invalid_argument(format_message("Currently only CUDA device 0 is supported, but received arrays on CUDA device %d", device_id));

@@ -453,6 +453,8 @@ NB_MODULE(diffmoments_ext, m)
     m.def("get_moment_bias_vector_f32", get_moment_bias_vector<float>, nb::arg("n"));
     m.def("get_moment_bias_vector_f64", get_moment_bias_vector<double>, nb::arg("n"));
 
-    init_cuda();
-    load_module();
+    if (init_cuda())
+        load_module();
+
+    // TODO: Shutdown CUDA when the Python module is unloaded
 }

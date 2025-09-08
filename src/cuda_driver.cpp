@@ -1,4 +1,4 @@
-// Derived from https://github.com/rgl-epfl/cholespy/blob/main/src/cuda_driver.cpp
+// Derived from https://github.com/rgl-epfl/cholespy/blob/main/src/cuda_driver.cpp (3-clause BSD License)
 
 #include "cuda_driver.hpp"
 
@@ -79,7 +79,12 @@ bool init_cuda() {
 #endif
 
     if (!handle)
+    {
+        fprintf(stderr,
+               "cuda_init(): failed to load CUDA driver -- disabling "
+               "CUDA backend!");
         return false;
+    }
 
     const char* symbol = nullptr;
 
