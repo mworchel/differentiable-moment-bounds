@@ -126,12 +126,12 @@ namespace dm
 		// Without sorting, these are unused variables (and hopefully optimized away)
 		unsigned int a_perm[N];
 		Float        x_sorted[N];
+		Float        a_sorted[N];
 		Float*       x_output = x;
 
 		if constexpr (Sort)
 		{
 			// Sort the rows by magnitude using Bubble sort
-			Float a_sorted[N];
 			for (unsigned int i = 0; i < N; ++i)
 			{
 				a_perm[i] = i;
@@ -197,10 +197,11 @@ namespace dm
 	template<typename Float, unsigned int N, bool Sort = true>
 	DEVICE void bjoerck_pereyra_dual_solve(Float const* a, Float const* f, Float* x)
 	{
+		Float a_sorted[N];
+		Float f_sorted[N];
+		
 		if constexpr (Sort)
 		{
-			Float a_sorted[N];
-			Float f_sorted[N];
 			for (unsigned int i = 0; i < N; ++i)
 			{
 				a_sorted[i] = a[i];
