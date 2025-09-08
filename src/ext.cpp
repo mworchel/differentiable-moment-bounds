@@ -18,14 +18,34 @@
 namespace nb = nanobind;
 
 // Checks if a each nanobind array is allocated on the given device
-template<typename ArrayType, typename... Arrays>
-void check_on_device(int device_type, int device_id, ArrayType&& a, Arrays&&... arrays)
+template<typename Array, typename... Arrays>
+void check_on_device(int device_type, int device_id, Array&& a, Arrays&&... arrays)
 {
     if (a.device_type() != device_type || a.device_id() != device_id)
         throw std::invalid_argument("Input arrays must be on the same device");
 
     if constexpr (sizeof...(arrays) > 0)
         check_on_device(device_type, device_id, std::forward<Arrays>(arrays)...);
+}
+
+template<typename Float>
+void validate_moments(nb::ndarray<Float, nb::c_contig> const& moments, unsigned int* num_moments_ = nullptr, unsigned int* n_ = nullptr)
+{
+    if (moments.ndim() != 2)
+        throw std::invalid_argument(format_message("Expected moments with shape (num_moments, n) but array has %d dimensions", moments.ndim()));
+
+    unsigned int num_moments = moments.shape(0);
+    unsigned int n = num_moments > 0 ? (num_moments - 1) / 2 : 0;
+
+    constexpr unsigned int MaxNumMoments = 2 * MaxN + 1;
+    if (moments.shape(0) == 0 || moments.shape(0) > MaxNumMoments)
+        throw std::invalid_argument(format_message("Expected moments with shape (num_moments, n) where 0 < num_moments <= %d (0 < n <= %d), but received %d moments (n = %d).", MaxNumMoments, MaxN, num_moments, n));
+
+    if (num_moments_)
+        *num_moments_ = num_moments;
+
+    if (n_)
+        *n_ = n;
 }
 
 template<typename Float>
@@ -47,15 +67,15 @@ dm::MomentBoundParams<Float> get_params_with_defaults(Float bias, Float overesti
 template<unsigned int N, typename Float>
 void compute_moment_bounds_anydevice(int device_type, int device_id, unsigned int size, uint32_t flags, dm::MomentBoundParams<Float> const& params, Float const* moments, Float const* etas, Float* bounds, Float* roots, Float* weights)
 {
-    // Dispatch the computation based on the device type
+    // Dispatch the computation based on the device type and flags
 
     if (device_type == nb::device::cpu::value)
-        run_with_flags<+ComputeMomentBoundsFlags::None, +ComputeMomentBoundsFlags::All>([&]<uint32_t Flags>()
+        dispatch_on_flags<+ComputeMomentBoundsFlags::None, +ComputeMomentBoundsFlags::All>([&]<uint32_t Flags>()
     {
         compute_moment_bounds_cpu<N, Float, Flags>(size, moments, etas, bounds, roots, weights, params);
     }, flags);
     else if (device_type == nb::device::cuda::value)
-        run_with_flags<+ComputeMomentBoundsFlags::None, +ComputeMomentBoundsFlags::All>([&]<uint32_t Flags>()
+        dispatch_on_flags<+ComputeMomentBoundsFlags::None, +ComputeMomentBoundsFlags::All>([&]<uint32_t Flags>()
     {
         compute_moment_bounds_gpu<N, Float, Flags>(device_id, size, moments, etas, bounds, roots, weights, params);
     }, flags);
@@ -74,8 +94,9 @@ void compute_moment_bounds(nb::ndarray<Float, nb::c_contig> moments,
 {
     check_on_device(moments.device_type(), moments.device_id(), etas, bounds, storage);
 
-    if (moments.ndim() != 2)
-        throw std::invalid_argument(format_message("Expected moments with shape (num_moments, n) but array has %d dimensions", moments.ndim()));
+    unsigned int num_moments;
+    unsigned int n;
+    validate_moments(moments, &num_moments, &n);
 
     if (etas.ndim() != 1)
         throw std::invalid_argument(format_message("Expected etas with shape (n,) but array has %d dimensions", etas.ndim()));
@@ -98,10 +119,6 @@ void compute_moment_bounds(nb::ndarray<Float, nb::c_contig> moments,
     if (bounds.shape(0) != size)
         throw std::invalid_argument(format_message("Expected moments (n=%d) and bounds (n=%d) to have the same size", size, bounds.shape(0)));
 
-    // Get the number of moments
-    unsigned int num_moments = moments.shape(0);
-    unsigned int n = (num_moments - 1) / 2;
-
     dm::MomentBoundParams<Float> params = get_params_with_defaults<Float>(bias, overestimation_weight);
 
     // Get the data pointers from the storage
@@ -121,18 +138,19 @@ void compute_moment_bounds(nb::ndarray<Float, nb::c_contig> moments,
     else if (n == 6)
         compute_moment_bounds_anydevice<6, Float>(moments.device_type(), moments.device_id(), size, flags, params, moments.data(), etas.data(), bounds.data(), roots, nullptr);
     else
-        throw std::invalid_argument(format_message("compute_moment_bounds only supports <= %d moments (n <= %d), but received %d moments (n = %d)", 6*2 + 1, 6, num_moments, n));
+        // This could be reached if `MaxN` is modified, and larger `n`s are not covered by this if-else block.
+        throw std::runtime_error("Internal error, this should never trigger.");
 }
 
 // Returns the required size for the backward storage, in number of floating point elements.
 template<typename Float>
 unsigned int get_required_backward_storage_size(nb::ndarray<Float, nb::c_contig> moments, uint32_t flags)
 {
-    if (moments.ndim() != 2)
-        throw std::invalid_argument(format_message("Expected moments with shape (num_moments, n) but array has %d dimensions", moments.ndim()));
+    unsigned int num_moments;
+    validate_moments(moments, &num_moments, nullptr);
 
     BackwardStorageDesc desc;
-    get_backward_storage_desc<Float>(moments.shape(1), moments.shape(0), flags, &desc);
+    get_backward_storage_desc<Float>(moments.shape(1), num_moments, flags, &desc);
     return desc.total_size;
 }
 
@@ -140,11 +158,11 @@ template<unsigned int N, typename Float>
 void compute_moment_bounds_backward_anydevice(int device_type, int device_id, unsigned int size, uint32_t flags, dm::MomentBoundParams<Float> const& params, Float const* moments, Float const* etas, Float const* bounds, Float const* roots, Float* dmoments, Float* detas, Float const* dbounds)
 {
     if (device_type == nb::device::cpu::value)
-        run_with_flags<+ComputeMomentBoundsFlags::None, +ComputeMomentBoundsFlags::All>([&]<uint32_t Flags>() {
+        dispatch_on_flags<+ComputeMomentBoundsFlags::None, +ComputeMomentBoundsFlags::All>([&]<uint32_t Flags>() {
         compute_moment_bounds_backward_cpu<N, Float, Flags>(size, moments, etas, bounds, roots, params, dmoments, detas, dbounds);
     }, flags);
     else if (device_type == nb::device::cuda::value)
-        run_with_flags<+ComputeMomentBoundsFlags::None, +ComputeMomentBoundsFlags::All>([&]<uint32_t Flags>() {
+        dispatch_on_flags<+ComputeMomentBoundsFlags::None, +ComputeMomentBoundsFlags::All>([&]<uint32_t Flags>() {
         compute_moment_bounds_backward_gpu<N, Float, Flags>(device_id, size, moments, etas, bounds, roots, params, dmoments, detas, dbounds);
     }, flags);
     else
@@ -165,8 +183,9 @@ void compute_moment_bounds_backward(nb::ndarray<Float, nb::c_contig> moments,
 {
     check_on_device(moments.device_type(), moments.device_id(), etas, bounds, storage, dmoments, detas, dbounds);
 
-    if (moments.ndim() != 2)
-        throw std::invalid_argument(format_message("Expected moments with shape (num_moments, n) but array has %d dimensions", moments.ndim()));
+    unsigned int num_moments;
+    unsigned int n;
+    validate_moments(moments, &num_moments, &n);
 
     if (etas.ndim() != 1)
         throw std::invalid_argument(format_message("Expected etas with shape (n,) but array has %d dimensions", etas.ndim()));
@@ -207,10 +226,6 @@ void compute_moment_bounds_backward(nb::ndarray<Float, nb::c_contig> moments,
     if (dbounds.shape(0) != size)
         throw std::invalid_argument(format_message("Expected moments (n=%d) and bounds (n=%d) to have the same size", size, bounds.shape(0)));
 
-    // Get the number of moments
-    unsigned int num_moments = moments.shape(0);
-    unsigned int n = (num_moments - 1) / 2;
-
     dm::MomentBoundParams<Float> params = get_params_with_defaults<Float>(bias, overestimation_weight);
 
     // Get the data pointers from the storage
@@ -230,7 +245,8 @@ void compute_moment_bounds_backward(nb::ndarray<Float, nb::c_contig> moments,
     else if (n == 6)
         compute_moment_bounds_backward_anydevice<6, Float>(moments.device_type(), moments.device_id(), size, flags, params, moments.data(), etas.data(), bounds.data(), roots, dmoments.data(), detas.data(), dbounds.data());
     else
-        throw std::invalid_argument(format_message("compute_moment_bounds_backward only supports <= %d moments (n <= %d), but received %d moments (n = %d)", 6 * 2 + 1, 6, num_moments, n));
+        // This could be reached if `MaxN` is modified, and larger `n`s are not covered by this if-else block.
+        throw std::runtime_error("Internal error, this should never trigger.");
 }
 
 ///////////////////////////////////////////
@@ -272,20 +288,11 @@ void compute_moment_bounds_and_roots(nb::ndarray<Float, nb::c_contig> moments,
 {
 	// TODO: Merge with compute_moment_bounds to avoid duplicate code
 
-    if (moments.device_type() != etas.device_type() || moments.device_id() != etas.device_id())
-        throw std::invalid_argument("Input arrays must be on the same device");
+    check_on_device(moments.device_type(), moments.device_id(), etas, bounds, roots, weights);
 
-    if (moments.device_type() != bounds.device_type() || moments.device_id() != bounds.device_id())
-        throw std::invalid_argument("Input arrays must be on the same device");
-
-    if (moments.device_type() != roots.device_type() || moments.device_id() != roots.device_id())
-        throw std::invalid_argument("Input arrays must be on the same device");
-
-    if (moments.device_type() != weights.device_type() || moments.device_id() != weights.device_id())
-        throw std::invalid_argument("Input arrays must be on the same device");
-
-    if (moments.ndim() != 2)
-        throw std::invalid_argument(format_message("Expected moments with shape (num_moments, size) but array has %d dimensions", moments.ndim()));
+    unsigned int num_moments;
+    unsigned int n;
+    validate_moments(moments, &num_moments, &n);
 
     if (etas.ndim() != 1)
         throw std::invalid_argument(format_message("Expected etas with shape (size,) but array has %d dimensions", etas.ndim()));
@@ -312,10 +319,6 @@ void compute_moment_bounds_and_roots(nb::ndarray<Float, nb::c_contig> moments,
     if (weights.shape(1) != size)
         throw std::invalid_argument(format_message("Expected moments (size=%d) and weights (size=%d) to have the same size", size, weights.shape(1)));
 
-    // Get the number of moments
-    unsigned int num_moments = moments.shape(0);
-    unsigned int n = (num_moments - 1) / 2;
-
     // Verify number of roots and weights
     if (roots.shape(0) != n + 1)
         throw std::invalid_argument(format_message("Expected roots with shape (n+1,size) = (%d, %d) but array has shape (%d, %d)", n+1, size, roots.shape(0), roots.shape(1)));
@@ -340,7 +343,8 @@ void compute_moment_bounds_and_roots(nb::ndarray<Float, nb::c_contig> moments,
     else if (n == 6)
         compute_moment_bounds_anydevice<6, Float>(moments.device_type(), moments.device_id(), size, flags, params, moments.data(), etas.data(), bounds.data(), roots.data(), weights.data());
     else
-        throw std::invalid_argument(format_message("compute_moment_bounds_and_roots only supports <= %d moments (n <= %d), but received %d moments (n = %d)", 6 * 2 + 1, 6, num_moments, n));
+        // This could be reached if `MaxN` is modified, and larger `n`s are not covered by this if-else block.
+        throw std::runtime_error("Internal error, this should never trigger.");
 }
 
 template<unsigned int N, typename Float>
@@ -361,8 +365,9 @@ void compute_singularities(nb::ndarray<Float, nb::c_contig> moments,
 {
     check_on_device(moments.device_type(), moments.device_id(), singularities);
 
-    if (moments.ndim() != 2)
-        throw std::invalid_argument(format_message("Expected moments with shape (num_moments, n) but array has %d dimensions", moments.ndim()));
+    unsigned int num_moments;
+    unsigned int n;
+    validate_moments(moments, &num_moments, &n);
 
     if (singularities.ndim() != 2)
         throw std::invalid_argument(format_message("Expected singularities with shape (num_singularities, n) but array has %d dimensions", singularities.ndim()));
@@ -370,10 +375,6 @@ void compute_singularities(nb::ndarray<Float, nb::c_contig> moments,
     unsigned int size = static_cast<unsigned int>(moments.shape(1));
     if (singularities.shape(1) != size)
         throw std::invalid_argument(format_message("Expected moments (n=%d) and singularities (n=%d) to have the same size", size, singularities.shape(0)));
-
-    // Get the number of moments
-    unsigned int num_moments = moments.shape(0);
-    unsigned int n = (num_moments - 1) / 2;
 
     if (singularities.shape(0) != n)
         throw std::invalid_argument(format_message("Expected singularities with shape (n=%d, ...), received (n=%d,...", n, singularities.shape(0)));
@@ -393,7 +394,8 @@ void compute_singularities(nb::ndarray<Float, nb::c_contig> moments,
     else if (n == 6)
         compute_singularities_anydevice<6, Float>(moments.device_type(), moments.device_id(), size, params, moments.data(), singularities.data());
     else
-        throw std::invalid_argument(format_message("compute_singularities only supports <= %d moments (n <= %d), but received %d moments (n = %d)", 6 * 2 + 1, 6, num_moments, n));
+        // This could be reached if `MaxN` is modified, and larger `n`s are not covered by this if-else block.
+        throw std::runtime_error("Internal error, this should never trigger.");
 }
 
 template<typename Float>

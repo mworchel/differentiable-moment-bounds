@@ -11,6 +11,10 @@
 #include "cuda_module.hpp"
 #include "cuda_driver.hpp"
 
+// The maximum supported n (i.e., 2*n+1 moments)
+// (NOTE: this value is hard-coded in different places)
+constexpr unsigned int MaxN = 6;
+
 ///////////////////////////////////////////
 // Utilities
 ///////////////////////////////////////////
@@ -51,7 +55,7 @@ void parallel_for(Func func, unsigned int size, unsigned int num_threads = 0, un
 
 // Performs a templated call to a function `func<Flags>` based on the given runtime `flags`.
 template<uint32_t Flags, uint32_t All, typename Func>
-void run_with_flags(Func&& func, uint32_t flags)
+void dispatch_on_flags(Func&& func, uint32_t flags)
 {
     if constexpr (Flags > All)
         throw std::runtime_error("Internal error.");
@@ -61,7 +65,7 @@ void run_with_flags(Func&& func, uint32_t flags)
             func.template operator()<Flags>();
         else
             // Simply iterate all possible bits
-            run_with_flags<Flags + 1, All, Func>(std::forward<Func>(func), flags);
+            dispatch_on_flags<Flags + 1, All, Func>(std::forward<Func>(func), flags);
     }
 }
 
