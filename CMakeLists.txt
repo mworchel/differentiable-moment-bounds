@@ -32,6 +32,10 @@ set(CMAKE_CXX_EXTENSIONS FALSE)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+if (MSVC)
+    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:/MP>)
+endif()
+
 option(DM_BUILD_KERNELS "Build the CUDA kernels" OFF)
 option(DM_BUILD_TESTS "Build tests" OFF)
 
