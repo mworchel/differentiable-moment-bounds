@@ -40,8 +40,3 @@ test-skip = ["pp*", "*win32", "*i686", "*-musllinux*"]
 # Needed for full C++17 support
 [tool.cibuildwheel.macos.environment]
 MACOSX_DEPLOYMENT_TARGET = "10.14"
-
-# Skip OpenBLAS installation on untested variants
-[[tool.cibuildwheel.overrides]]
-select = ["*i686", "*-musllinux*"]
-before-all = ""
