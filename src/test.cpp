@@ -12,6 +12,9 @@
 #include "moment_problem.hpp"
 #include "polynomial.hpp"
 
+// These are basic sanity checks for the functions in the core library.
+// TODO: Update, because tests are outdated.
+
 template<typename MatrixType>
 void print_matrix(MatrixType mat)
 {
