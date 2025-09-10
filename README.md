@@ -81,22 +81,22 @@ A potential "gotcha" is that executing the CUDA variants not necessarily reflect
 The Python interface is just a shallow wrapper around C++ code, which is organized to be accessible by external projects. The following diagram gives an overview of the project structure:
 
 ```
-        +-----------------------+
-        | PyTorch/NumPy/Dr.Jit  |
-        +-----------+-----------+
-                    |
-                    v
-        +-----------+------------+
-        |  diffmoments (Python)  | 
-        +-----------+------------+
-                    |
-                    v
-        +-----------+-------------+
-        |  diffmoments_ext (C++)  |
-        +-----------+-------------+
-                    |
-                    v
-  +-----------------+------------+
+    +-------------------------+
+    |  PyTorch/NumPy/Dr.Jit   |
+    +------------+------------+
+                 |
+                 v
+    +------------+------------+
+    |  diffmoments (Python)   | 
+    +------------+------------+
+                 |
+                 v
+    +------------+------------+
+    |  diffmoments_ext (C++)  |
+    +------------+------------+
+                 |
+                 v
+  +--------------+---------------+
   |  diffmoments_dispatch (C++)  |
   +-----------+---------------+--+
               |               ^
