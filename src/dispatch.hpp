@@ -127,7 +127,7 @@ void compute_moment_bounds_gpu(int device_id, unsigned int size, Float const* mo
     if (!cu_context)
         throw std::runtime_error("CUDA context is not initialized.");
 
-    // TODO: Handle non-default device (also affects the kernel cache)
+    // TODO: Handle non-default device
     if (device_id != 0)
         throw std::invalid_argument(format_message("Currently only CUDA device 0 is supported, but received arrays on CUDA device %d", device_id));
 
@@ -245,7 +245,7 @@ void compute_moment_bounds_backward_gpu(int device_id, unsigned int size, Float 
     if (!cu_context)
         throw std::runtime_error("CUDA context is not initialized.");
 
-    // TODO: Handle non-default device (also affects the kernel cache)
+    // TODO: Handle non-default device
     if (device_id != 0)
         throw std::invalid_argument(format_message("Currently only CUDA device 0 is supported, but received arrays on CUDA device %d", device_id));
 
@@ -318,7 +318,7 @@ void detect_bound_errors_gpu(int device_id, unsigned int size, Float* bounds)
     if (!cu_context)
         throw std::runtime_error("CUDA context is not initialized.");
 
-    // TODO: Handle non-default device (also affects the kernel cache)
+    // TODO: Handle non-default device
     if (device_id != 0)
         throw std::invalid_argument(format_message("Currently only CUDA device 0 is supported, but received arrays on CUDA device %d", device_id));
 
@@ -420,7 +420,7 @@ void compute_singularities_gpu(int device_id, unsigned int size, dm::MomentBound
     if (!cu_context)
         throw std::runtime_error("CUDA context is not initialized.");
 
-    // TODO: Handle non-default device (also affects the kernel cache)
+    // TODO: Handle non-default device
     if (device_id != 0)
         throw std::invalid_argument(format_message("Currently only CUDA device 0 is supported, but received arrays on CUDA device %d", device_id));
 
