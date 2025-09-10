@@ -30,12 +30,8 @@ Note that this repository does *not* contain code for specific applications like
 The easiest way to install the Python package is via `pip`
 
 ```bash
-pip install git+https://github.com/mworchel/differentiable-moment-bounds.git 
+pip install diffmoments
 ```
-
-This builds the code from source and only requires a C++20-compatible compiler.
-
-**NOTE: A PyPI package with pre-built wheels will be provided soon to simplify the installation.**
 
 ### Optional: Test the Installation
 
