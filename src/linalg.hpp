@@ -108,7 +108,7 @@ namespace dm
 	{
 		Float y[N] = {0};
 		forward_substitution<Float, N>(L, b, y);
-		backward_substitution<Float, N>(dm::transpose(L), y, x); // Really a good idea? haha
+		backward_substitution<Float, N>(dm::transpose(L), y, x);
 	}
 
 	/**
@@ -150,7 +150,7 @@ namespace dm
 				}
 			}
 
-			// Overwrite the pointers, so the main body uses the standard variables
+			// Override the pointers, so the main body uses the standard variables
 			x = x_sorted;
 			a = a_sorted;
 		}
@@ -221,6 +221,7 @@ namespace dm
 				}
 			}
 
+			// Override the pointers, so the main body uses the standard variables
 			a = a_sorted;
 			f = f_sorted;
 		}
